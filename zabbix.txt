@@ -1,0 +1,100 @@
+Обновил 8.0.5 до 8.7.0. Все в норме, в т.ч. двухфакторная аутентификация ^0-o^
+#
+[#]
+1. Обновляем:
+     # ./install.sh --skip-activation-check
+
+2. Останавливаем:
+     $ zmcontrol stop
+
+3. Копируем патченый zimbra-license-tools.jar в /opt/zimbra/lib/ext-common (*перезаписываем* на место оригинального)
+   На этот раз я сам не делал, взял готовый, который выкладывал In_The_Music
+
+4. Стартуем:
+     $ zmcontrol start
+
+Устанавливаем новые сертификаты, без этого не работают новые функции, напр. двухфакторная аутентификация:
+
+5. Генерим fingerprint:
+     $ zmlicense -f
+   сохраняем его в укромном месте, пригодится в п.7.
+
+6. Ставим сертификат:
+     $ zmlicense -i /tmp/zl.xml
+
+zl.xml:
+------------------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ZimbraLicense verifier="ZV2">
+  <item name="AccountsLimit" value="100000"/>
+  <item name="ArchivingAccountsLimit" value="100000"/>
+  <item name="AttachmentConversionEnabled" value="true"/>
+  <item name="AttachmentIndexingAccountsLimit" value="100000"/>
+  <item name="BackupEnabled" value="true"/>
+  <item name="CrossMailboxSearchEnabled" value="true"/>
+  <item name="EwsAccountsLimit" value="100000"/>
+  <item name="HierarchicalStorageManagementEnabled" value="true"/>
+  <item name="ISyncAccountsLimit" value="100000"/>
+  <item name="InstallType" value="perpetual"/>
+  <item name="IssuedOn" value="20120101170000Z"/>
+  <item name="IssuedToEmail" value="qa@zimbra.com"/>
+  <item name="IssuedToName" value="Company"/>
+  <item name="LicenseId" value="12312312-1234-1234-1234-567894831234"/>
+  <item name="MAPIConnectorAccountsLimit" value="100000"/>
+  <item name="MobileSyncAccountsLimit" value="100000"/>
+  <item name="MobileSyncEnabled" value="true"/>
+  <item name="ResellerName" value="Ru-Board"/>
+  <item name="SMIMEAccountsLimit" value="100000"/>
+  <item name="TouchClientsAccountsLimit" value="100000"/>
+  <item name="TwoFactorAuthAccountsLimit" value="100000"/>
+  <item name="ValidFrom" value="20120101170000Z"/>
+  <item name="ValidUntil" value="30100101170000Z"/>
+  <item name="VoiceAccountsLimit" value="100000"/>
+  <item name="ZSSAccountsLimit" value="100000"/>
+  <signature value="" key="zk1"/>
+</ZimbraLicense>
+----------------------------------------------------
+
+7. Записываем fingerprint, полученный в п.5 в сертификат активации:
+
+zl_a.xml:
+----------------------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ZimbraLicenseActivation verifier="ZV2">
+  <item name="LicenseId" value="12312312-1234-1234-1234-567894831234"/>
+  <item name="ActivationId" value="12312312-1234-1234-1234-567894831230"/>
+  <item name="Version" value="999"/>
+  <item name="Fingerprint" value="---fingerprint вставить сюда---"/>
+  <item name="LastUpdate" value="30100101170000Z"/>
+  <signature value="" key="zk1"/>
+</ZimbraLicenseActivation>
+
+8. Обязательно перезапускаем, без этого не начинают работать новые функции, напр. двухфакторная аутентификация:
+     $ zmcontrol stop
+     $ zmcontrol start
+
+10. Profit!
+
+Проверенно на:
+zcs-NETWORK-8.7.0_GA_1659.RHEL7_64.20160628202904.tgz md5=e25ef754861a04f72886013267aca675
+Centos 7, 3.10.0-327.36.1.el7.x86_64`
+
+
+Осмотрелся по сторонам и проделал еще п.п. 11 и 12 отсюда:
+https://wiki.zimbra.com/wiki/Zimbra_Releases/8.7.0/Upgrade
+
+11. (( В директории /opt/zimbra/postfix, куда все показывало раньше, все равно ничего из указанного нет, так что хуже не будет ))
+zmprov mcf zimbraMtaCommandDirectory /opt/zimbra/common/sbin
+zmprov mcf zimbraMtaDaemonDirectory /opt/zimbra/common/libexec
+zmprov mcf zimbraMtaMailqPath /opt/zimbra/common/sbin/mailq
+zmprov mcf zimbraMtaManpageDirectory /opt/zimbra/common/share/man
+zmprov mcf zimbraMtaNewaliasesPath /opt/zimbra/common/sbin/newaliases
+zmprov mcf zimbraMtaSendmailPath /opt/zimbra/common/sbin/sendmail
+
+12. (( ))
+zmprov ms `zmhostname` zimbraAmavisDSPAMEnabled FALSE
+zmlocalconfig -e amavis_dspam_enabled=false
+zmamavisdctl restart
+[/#]
